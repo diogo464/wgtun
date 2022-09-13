@@ -30,6 +30,9 @@ where
                     remainging: remaining,
                 } => {
                     let read = self.reader.read(&mut self.buffer[2 - remaining..2]).await?;
+                    if read == 0 {
+                        return Err(io::ErrorKind::UnexpectedEof.into());
+                    }
 
                     let remainging = remaining - read;
                     if remainging == 0 {
@@ -47,6 +50,9 @@ where
                         .reader
                         .read(&mut self.buffer[total - remaining..total])
                         .await?;
+                    if read == 0 {
+                        return Err(io::ErrorKind::UnexpectedEof.into());
+                    }
 
                     let remaining = remaining - read;
                     if remaining == 0 {
