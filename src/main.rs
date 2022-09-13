@@ -4,7 +4,11 @@ mod client;
 mod dgram;
 mod server;
 
-use std::{net::SocketAddr, time::Duration};
+use std::{
+    net::{SocketAddr, ToSocketAddrs},
+    str::FromStr,
+    time::Duration,
+};
 
 use clap::{Parser, Subcommand};
 
@@ -32,7 +36,7 @@ struct ClientArgs {
     timeout: u32,
     /// The address of the server.
     #[clap(long)]
-    server: SocketAddr,
+    server: String,
 }
 
 #[derive(Parser, Debug)]
@@ -42,7 +46,7 @@ struct ServerArgs {
     address: SocketAddr,
     /// The address to send udp packets to.
     #[clap(long, default_value = "127.0.0.1:51280")]
-    target: SocketAddr,
+    target: String,
 }
 
 #[tokio::main]
@@ -57,18 +61,30 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn run_client(args: ClientArgs) -> anyhow::Result<()> {
+    let server = args
+        .server
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("Invalid server address"))?;
+
     client::run(client::ClientParams {
         address: SocketAddr::from(([127, 0, 0, 1], args.port)),
         timeout: Duration::from_secs(u64::from(args.timeout)),
-        server: args.server,
+        server,
     })
     .await
 }
 
 async fn run_server(args: ServerArgs) -> anyhow::Result<()> {
+    let target = args
+        .target
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("Invalid target address: {}", args.target))?;
+
     server::run(server::ServerArgs {
         address: args.address,
-        target: args.target,
+        target,
     })
     .await
 }
