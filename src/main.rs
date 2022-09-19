@@ -45,7 +45,7 @@ struct ServerArgs {
     #[clap(long, default_value = "0.0.0.0:51820")]
     address: SocketAddr,
     /// The address to send udp packets to.
-    #[clap(long, default_value = "127.0.0.1:51280")]
+    #[clap(long, default_value = "127.0.0.1:51820")]
     target: String,
 }
 
