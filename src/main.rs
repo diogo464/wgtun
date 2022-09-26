@@ -34,6 +34,9 @@ struct ClientArgs {
     /// It is automatically reastablished when a new packet is received.
     #[clap(long, default_value_t = 30)]
     timeout: u32,
+    /// Connection timeout in seconds.
+    #[clap(long, default_value_t = 5)]
+    connect_timeout: u32,
     /// The address of the server.
     #[clap(long)]
     server: String,
@@ -70,6 +73,7 @@ async fn run_client(args: ClientArgs) -> anyhow::Result<()> {
     client::run(client::ClientParams {
         address: SocketAddr::from(([127, 0, 0, 1], args.port)),
         timeout: Duration::from_secs(u64::from(args.timeout)),
+        connect_timeout: Duration::from_secs(u64::from(args.connect_timeout)),
         server,
     })
     .await

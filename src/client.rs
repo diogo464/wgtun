@@ -15,6 +15,7 @@ use crate::dgram;
 pub struct ClientParams {
     pub address: SocketAddr,
     pub timeout: Duration,
+    pub connect_timeout: Duration,
     pub server: SocketAddr,
 }
 
@@ -25,12 +26,13 @@ struct ServerConn {
 
 struct LazyServerConn {
     server: SocketAddr,
+    connect_timeout: Duration,
     conn: Option<ServerConn>,
 }
 
 pub async fn run(params: ClientParams) -> anyhow::Result<()> {
     let socket = create_udp_socket(params.address).await?;
-    let mut sconn = LazyServerConn::new(params.server);
+    let mut sconn = LazyServerConn::new(params.server, params.connect_timeout);
     let mut last_sender: Option<SocketAddr> = None;
     let mut timeout = tokio::time::interval(params.timeout);
 
@@ -91,8 +93,12 @@ impl ServerConn {
 }
 
 impl LazyServerConn {
-    fn new(server: SocketAddr) -> Self {
-        Self { server, conn: None }
+    fn new(server: SocketAddr, connect_timeout: Duration) -> Self {
+        Self {
+            server,
+            connect_timeout,
+            conn: None,
+        }
     }
 
     fn close(&mut self) {
@@ -103,7 +109,19 @@ impl LazyServerConn {
         let conn = match self.conn {
             Some(ref mut conn) => conn,
             None => {
-                self.conn = Some(ServerConn::connect(self.server).await?);
+                self.conn = Some(
+                    match tokio::time::timeout(
+                        self.connect_timeout,
+                        ServerConn::connect(self.server),
+                    )
+                    .await
+                    {
+                        Ok(result) => result?,
+                        Err(_) => {
+                            return Err(io::Error::new(io::ErrorKind::TimedOut, "connect timeout"))
+                        }
+                    },
+                );
                 self.conn.as_mut().unwrap()
             }
         };
