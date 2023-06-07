@@ -5,7 +5,7 @@ A WireGuard TCP tunnel.
 ## The problem
 
 Trying to use WireGuard from behind a restrictive firewall can be a problem since alot of times UDP is blocked.
-This requires workarounds like having to share a phone's mobile internet over a hostspot.
+This requires workarounds like having to share a phone's mobile internet over a hotspot.
 
 ## The solution
 
