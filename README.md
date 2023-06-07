@@ -15,7 +15,7 @@ I don't know how much the performance deteriorates but from experience it is sti
 
 ## How to use wgtun
 
-On the client run `wgtun client --server example.com:51820`. This will bind socket on localhost and forward any UDP packets over TCP to the server. The WireGuard configuration on the client has to be modified to use `localhost:51820` as the endpoint.
+On the client run `wgtun client --server example.com:51820`. This will bind a socket on localhost and forward any UDP packets over TCP to the server. The WireGuard configuration on the client has to be modified to use `localhost:51820` as the endpoint.
 
 On the server, or any machine that can reach the server, run `wgtun server --target localhost:51820` where `localhost:51820` is where the WireGuard server is listening.
 
