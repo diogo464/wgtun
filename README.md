@@ -1,20 +1,24 @@
 # wgtun
 
-## server
-+ accepts tcp connection
-+ received rle messages
-+ sends message payload as a udp packet to localhost:51820
-+ received udp packets from that socket and sends them as rle to the client
-wgtun server
-	--target <sock addr> 	# SockAddr to send the udp packets to, defaults to localhost:51820
+A WireGuard TCP tunnel.
 
-## client
-+ attempts tcp connection
-+ close the connection after x seconds of inactivity
-+ binds udp socket and listens for incoming datagrams
-+ sends datagrams as rle message to the tcp stream, if the tcp stream is not connected drop them
-+ receives rle messages and sends them to the socket address that sent the first udp packet to the bound socket
-wgtun client
-	--port <number> 		# udp port to bind to on the localhost
-	--timeout <seconds> 	# Number of seconds of inactivity before closing the tcp connection
-	--server <sock addr> 	# SockAddr of the server to connect to, port defaults to 51820
+## The problem
+
+Trying to use WireGuard from behind a restrictive firewall can be a problem since alot of times UDP is blocked.
+This requires workarounds like having to share a phone's mobile internet over a hostspot.
+
+## The solution
+
+A possible solution to this problem is to simply encapsulate all WireGuard traffic inside a TCP connection and use one of the unrestricted ports to bypass the UDP block.
+As stated in https://www.wireguard.com/known-limitations/ this is intentionally not supported because of the bad performance of tunneling TCP-over-TCP.
+I don't know how much the performance deteriorates but from experience it is still good enough to run ssh without problems.
+
+## How to use wgtun
+
+On the client run `wgtun client --server example.com:51820`. This will bind socket on localhost and forward any UDP packets over TCP to the server. The WireGuard configuration on the client has to be modified to use `localhost:51820` as the endpoint.
+
+On the server, or any machine that can reach the server, run `wgtun server --target localhost:51820` where `localhost:51820` is where the WireGuard server is listening.
+
+### Container
+
+A container image is available at `ghcr.io/diogo464/wgtun`.
