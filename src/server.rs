@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use anyhow::Context;
 use tokio::{
     io::{AsyncWriteExt, BufReader, BufWriter},
     net::{TcpListener, TcpStream, UdpSocket},
@@ -19,7 +20,7 @@ pub async fn run(args: ServerArgs) -> anyhow::Result<()> {
         log::info!("Accepted connection from {}", addr);
         tokio::spawn(async move {
             if let Err(e) = stream_task(stream, args.target).await {
-                log::error!("Error handling connection from {}: {}", addr, e);
+                log::error!("Error handling connection from {}\n{:?}", addr, e);
             }
         });
     }
@@ -28,9 +29,17 @@ pub async fn run(args: ServerArgs) -> anyhow::Result<()> {
 }
 
 async fn stream_task(mut stream: TcpStream, target: SocketAddr) -> anyhow::Result<()> {
-    let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], 0))).await?;
+    let local_addr = local_addr_same_family(&target);
+    let socket = UdpSocket::bind(&local_addr)
+        .await
+        .context(format!("Failed to bind to local address: {}", local_addr))?;
+    log::debug!("Bound to local address: {}", socket.local_addr()?);
+
     let mut buffer = vec![0u8; 65535];
-    socket.connect(target).await?;
+    socket
+        .connect(target)
+        .await
+        .context(format!("Failed to connect to target address: {}", target))?;
 
     let (reader, writer) = stream.split();
     let mut reader = dgram::Reader::new(BufReader::new(reader));
@@ -47,10 +56,24 @@ async fn stream_task(mut stream: TcpStream, target: SocketAddr) -> anyhow::Resul
                 writer.flush().await?;
             }
             result = reader.read() => {
-                let message = result?;
+                let message = match result {
+                    Ok(message) => message,
+                    Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                    Err(e) => return Err(e.into()),
+                };
                 log::trace!("Received message from client with size: {}", message.len());
                 socket.send(message).await?;
             }
         }
+    }
+
+    log::info!("client {} disconnected", stream.peer_addr()?);
+    Ok(())
+}
+
+fn local_addr_same_family(addr: &SocketAddr) -> SocketAddr {
+    match addr {
+        SocketAddr::V4(_) => SocketAddr::from(([0, 0, 0, 0], 0)),
+        SocketAddr::V6(_) => SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 1], 0)),
     }
 }
